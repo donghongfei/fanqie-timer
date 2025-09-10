@@ -14,28 +14,25 @@ class PomodoroTimer {
         };
 
         this.initializeElements();
+        this.loadData();
         this.bindEvents();
         this.updateDisplay();
     }
 
     initializeElements() {
-        this.timeLeftElement = document.getElementById('timeLeft');
-        this.startBtn = document.getElementById('startBtn');
-        this.resetBtn = document.getElementById('resetBtn');
-        this.sessionCountElement = document.getElementById('sessionCount');
-        this.currentModeElement = document.getElementById('currentMode');
-        this.progressCircle = document.getElementById('progressCircle');
-        this.alarmSound = document.getElementById('alarmSound');
+        const $ = id => document.getElementById(id);
+        
+        [this.timeLeftElement, this.startBtn, this.resetBtn, this.sessionCountElement, 
+         this.currentModeElement, this.progressCircle, this.alarmSound] = 
+        ['timeLeft', 'startBtn', 'resetBtn', 'sessionCount', 'currentMode', 'progressCircle', 'alarmSound'].map($);
 
-        this.workDurationInput = document.getElementById('workDuration');
-        this.shortBreakInput = document.getElementById('shortBreakDuration');
-        this.longBreakInput = document.getElementById('longBreakDuration');
-        this.autoStartInput = document.getElementById('autoStart');
+        [this.workDurationInput, this.shortBreakInput, this.longBreakInput, this.autoStartInput] = 
+        ['workDuration', 'shortBreakDuration', 'longBreakDuration', 'autoStart'].map($);
+
+        [this.settingsToggle, this.settingsPanel, this.settingsIcon] = 
+        ['settingsToggle', 'settingsPanel', 'settingsIcon'].map($);
 
         this.modeButtons = document.querySelectorAll('.mode-btn');
-        this.settingsToggle = document.getElementById('settingsToggle');
-        this.settingsPanel = document.getElementById('settingsPanel');
-        this.settingsIcon = document.getElementById('settingsIcon');
         this.isSettingsOpen = false;
     }
 
@@ -88,6 +85,7 @@ class PomodoroTimer {
         this.modes.work.duration = parseInt(this.workDurationInput.value);
         this.modes['short-break'].duration = parseInt(this.shortBreakInput.value);
         this.modes['long-break'].duration = parseInt(this.longBreakInput.value);
+        this.saveData();
     }
 
     switchMode(mode) {
@@ -157,6 +155,7 @@ class PomodoroTimer {
         if (this.currentMode === 'work') {
             this.sessionCount++;
             this.sessionCountElement.textContent = this.sessionCount;
+            this.saveData();
             
             const nextMode = this.sessionCount % 4 === 0 ? 'long-break' : 'short-break';
             
@@ -296,6 +295,44 @@ class PomodoroTimer {
     resetProgress() {
         const circumference = 2 * Math.PI * 120;
         this.progressCircle.style.strokeDashoffset = circumference;
+    }
+
+    loadData() {
+        try {
+            const data = JSON.parse(localStorage.getItem('pomodoroData') || '{}');
+            const defaults = { sessionCount: 0, workDuration: 25, shortBreakDuration: 5, longBreakDuration: 15, autoStart: false };
+            
+            Object.assign(defaults, data);
+            
+            this.sessionCount = defaults.sessionCount;
+            Object.assign(this.modes, {
+                work: { ...this.modes.work, duration: defaults.workDuration },
+                'short-break': { ...this.modes['short-break'], duration: defaults.shortBreakDuration },
+                'long-break': { ...this.modes['long-break'], duration: defaults.longBreakDuration }
+            });
+            
+            [this.workDurationInput.value, this.shortBreakInput.value, this.longBreakInput.value] = 
+            [defaults.workDuration, defaults.shortBreakDuration, defaults.longBreakDuration];
+            this.autoStartInput.checked = defaults.autoStart;
+            
+            this.updateModeDurations();
+        } catch (error) {
+            console.log('加载数据失败:', error);
+        }
+    }
+
+    saveData() {
+        try {
+            localStorage.setItem('pomodoroData', JSON.stringify({
+                sessionCount: this.sessionCount,
+                workDuration: this.modes.work.duration,
+                shortBreakDuration: this.modes['short-break'].duration,
+                longBreakDuration: this.modes['long-break'].duration,
+                autoStart: this.autoStartInput.checked
+            }));
+        } catch (error) {
+            console.log('保存数据失败:', error);
+        }
     }
     
     toggleSettings() {
