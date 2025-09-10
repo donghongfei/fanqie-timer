@@ -48,9 +48,8 @@
     class="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 font-mono overflow-hidden"
   >
     <div class="h-screen flex items-center justify-center p-4">
-      <div class="w-full max-w-7xl flex items-center justify-between gap-8">
-        <!-- Main Timer Section -->
-        <div class="flex-1 flex flex-col items-center justify-center">
+      <!-- Main Timer Section - Centered -->
+      <div class="flex flex-col items-center justify-center">
           <!-- Header -->
           <div class="text-center mb-6">
             <h1
@@ -153,12 +152,13 @@
           </div>
         </div>
 
-        <!-- Collapsible Settings -->
-        <div class="flex-shrink-0">
-          <button
-            class="settings-toggle w-10 h-10 flex items-center justify-center bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200"
-            id="settingsToggle"
-          >
+      <!-- Bottom Right Controls -->
+      <div class="fixed bottom-4 right-4 flex gap-2">
+        <!-- Settings Button -->
+        <button
+          class="settings-toggle w-12 h-12 flex items-center justify-center bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-full text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200 shadow-lg"
+          id="settingsToggle"
+        >
             <svg
               class="w-5 h-5 transition-transform duration-200"
               id="settingsIcon"
@@ -181,7 +181,29 @@
             </svg>
           </button>
 
-          <div
+        <!-- Data View Button -->
+        <button
+          class="data-toggle w-12 h-12 flex items-center justify-center bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-full text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200 shadow-lg"
+          id="dataToggle"
+        >
+          <svg
+            class="w-5 h-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+            ></path>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Settings Panel -->
+      <div
             class="settings-panel fixed top-4 right-4 w-80 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-6 transform translate-x-full transition-transform duration-300 ease-in-out z-50"
             id="settingsPanel"
           >
@@ -254,6 +276,15 @@
                   class="w-4 h-4 text-gray-600 dark:text-gray-400 border-gray-300 dark:border-gray-600 dark:bg-gray-700 rounded focus:ring-gray-500 dark:focus:ring-gray-400"
                 />
               </div>
+
+              <div class="pt-2 border-t border-gray-200 dark:border-gray-700">
+                <button
+                  id="testSoundBtn"
+                  class="w-full px-3 py-2 bg-blue-50 dark:bg-blue-900 text-blue-600 dark:text-blue-400 rounded-lg text-sm font-medium transition-all duration-200 hover:bg-blue-100 dark:hover:bg-blue-800 active:scale-95"
+                >
+                  🔊 测试提示音
+                </button>
+              </div>
             </div>
 
             <div
@@ -266,6 +297,19 @@
               </p>
             </div>
           </div>
+
+      <!-- Data Panel -->
+      <div
+        class="data-panel fixed top-4 right-4 w-80 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-6 transform translate-x-full transition-transform duration-300 ease-in-out z-50"
+        id="dataPanel"
+      >
+        <h3
+          class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4"
+        >
+          本地数据
+        </h3>
+        <div id="dataContent" class="text-sm text-gray-600 dark:text-gray-400">
+          正在加载...
         </div>
       </div>
     </div>

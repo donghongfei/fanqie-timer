@@ -26,14 +26,18 @@ class PomodoroTimer {
          this.currentModeElement, this.progressCircle, this.alarmSound] = 
         ['timeLeft', 'startBtn', 'resetBtn', 'sessionCount', 'currentMode', 'progressCircle', 'alarmSound'].map($);
 
-        [this.workDurationInput, this.shortBreakInput, this.longBreakInput, this.autoStartInput] = 
-        ['workDuration', 'shortBreakDuration', 'longBreakDuration', 'autoStart'].map($);
+        [this.workDurationInput, this.shortBreakInput, this.longBreakInput, this.autoStartInput, this.testSoundBtn] = 
+        ['workDuration', 'shortBreakDuration', 'longBreakDuration', 'autoStart', 'testSoundBtn'].map($);
 
         [this.settingsToggle, this.settingsPanel, this.settingsIcon] = 
         ['settingsToggle', 'settingsPanel', 'settingsIcon'].map($);
 
+        [this.dataToggle, this.dataPanel, this.dataContent] = 
+        ['dataToggle', 'dataPanel', 'dataContent'].map($);
+
         this.modeButtons = document.querySelectorAll('.mode-btn');
         this.isSettingsOpen = false;
+        this.isDataOpen = false;
     }
 
     bindEvents() {
@@ -58,17 +62,23 @@ class PomodoroTimer {
         });
 
         this.settingsToggle.addEventListener('click', () => this.toggleSettings());
+        this.dataToggle.addEventListener('click', () => this.toggleData());
+        this.testSoundBtn.addEventListener('click', () => this.testSound());
         
-        // Close settings when clicking outside
+        // Close panels when clicking outside
         document.addEventListener('click', (e) => {
             if (this.isSettingsOpen && !this.settingsPanel.contains(e.target) && !this.settingsToggle.contains(e.target)) {
                 this.closeSettings();
+            }
+            if (this.isDataOpen && !this.dataPanel.contains(e.target) && !this.dataToggle.contains(e.target)) {
+                this.closeData();
             }
         });
 
         document.addEventListener('visibilitychange', () => {
             if (document.hidden && this.isRunning) {
                 this.lastTimestamp = Date.now();
+                this.saveData(); // 应用切换到后台时保存数据
             } else if (!document.hidden && this.isRunning && this.lastTimestamp) {
                 const elapsed = Math.floor((Date.now() - this.lastTimestamp) / 1000);
                 this.timeLeft = Math.max(0, this.timeLeft - elapsed);
@@ -77,8 +87,21 @@ class PomodoroTimer {
                 } else {
                     this.updateDisplay();
                 }
+                this.saveData(); // 应用切换到前台时也保存数据
             }
         });
+        
+        // 页面卸载前保存数据
+        window.addEventListener('beforeunload', () => {
+            this.saveData();
+        });
+        
+        // 定期保存数据（每30秒）
+        setInterval(() => {
+            if (this.isRunning) {
+                this.saveData();
+            }
+        }, 30000);
     }
 
     updateModeDurations() {
@@ -180,14 +203,28 @@ class PomodoroTimer {
     }
 
     playAlarm() {
-        // 创建更清晰的提示音
-        this.createBetterAlarm();
-        
-        // 播放原始音频作为备选
+        // 先尝试播放原始音频（优先级高，因为已经有用户交互）
         this.alarmSound.currentTime = 0;
-        this.alarmSound.play().catch(e => {
-            console.log('无法播放音频:', e);
-        });
+        const audioPromise = this.alarmSound.play();
+        
+        if (audioPromise !== undefined) {
+            audioPromise.then(() => {
+                console.log('音频播放成功');
+            }).catch(e => {
+                console.log('音频播放失败，尝试Web Audio API:', e);
+                // 如果原始音频失败，尝试Web Audio API
+                this.createBetterAlarm();
+            });
+        } else {
+            // 如果不支持Promise，直接尝试Web Audio API作为备选
+            this.createBetterAlarm();
+        }
+        
+        // 为iOS Safari添加额外的提示
+        if (this.isIOS()) {
+            // 尝试唤醒设备（如果在后台）
+            navigator.vibrate && navigator.vibrate([200, 100, 200]);
+        }
     }
 
     createBetterAlarm() {
@@ -299,8 +336,20 @@ class PomodoroTimer {
 
     loadData() {
         try {
-            const data = JSON.parse(localStorage.getItem('pomodoroData') || '{}');
-            const defaults = { sessionCount: 0, workDuration: 25, shortBreakDuration: 5, longBreakDuration: 15, autoStart: false };
+            // 先尝试从localStorage加载，如果失败则从sessionStorage加载
+            let dataStr = localStorage.getItem('pomodoroData') || sessionStorage.getItem('pomodoroData') || '{}';
+            const data = JSON.parse(dataStr);
+            const defaults = { 
+                sessionCount: 0, 
+                workDuration: 25, 
+                shortBreakDuration: 5, 
+                longBreakDuration: 15, 
+                autoStart: false,
+                currentMode: 'work',
+                timeLeft: null,
+                isRunning: false,
+                lastSaveTime: null
+            };
             
             Object.assign(defaults, data);
             
@@ -315,7 +364,17 @@ class PomodoroTimer {
             [defaults.workDuration, defaults.shortBreakDuration, defaults.longBreakDuration];
             this.autoStartInput.checked = defaults.autoStart;
             
+            // 恢复计时器状态（如果在合理时间内）
+            if (defaults.timeLeft && defaults.lastSaveTime && 
+                (Date.now() - defaults.lastSaveTime) < 5 * 60 * 1000) { // 5分钟内
+                this.currentMode = defaults.currentMode;
+                this.timeLeft = defaults.timeLeft;
+                this.totalTime = this.modes[this.currentMode].duration * 60;
+                this.switchMode(this.currentMode);
+            }
+            
             this.updateModeDurations();
+            console.log('数据已加载:', defaults);
         } catch (error) {
             console.log('加载数据失败:', error);
         }
@@ -323,13 +382,23 @@ class PomodoroTimer {
 
     saveData() {
         try {
-            localStorage.setItem('pomodoroData', JSON.stringify({
+            const data = {
                 sessionCount: this.sessionCount,
                 workDuration: this.modes.work.duration,
                 shortBreakDuration: this.modes['short-break'].duration,
                 longBreakDuration: this.modes['long-break'].duration,
-                autoStart: this.autoStartInput.checked
-            }));
+                autoStart: this.autoStartInput.checked,
+                currentMode: this.currentMode,
+                timeLeft: this.timeLeft,
+                isRunning: this.isRunning,
+                lastSaveTime: Date.now()
+            };
+            localStorage.setItem('pomodoroData', JSON.stringify(data));
+            
+            // 额外备份到sessionStorage（防止localStorage被清除）
+            sessionStorage.setItem('pomodoroData', JSON.stringify(data));
+            
+            console.log('数据已保存:', data);
         } catch (error) {
             console.log('保存数据失败:', error);
         }
@@ -345,6 +414,11 @@ class PomodoroTimer {
     }
     
     openSettings() {
+        // 如果数据面板是打开的，先关闭它
+        if (this.isDataOpen) {
+            this.closeData();
+        }
+        
         this.settingsPanel.classList.remove('translate-x-full');
         this.settingsPanel.classList.add('translate-x-0');
         this.settingsIcon.style.transform = 'rotate(90deg)';
@@ -356,6 +430,132 @@ class PomodoroTimer {
         this.settingsPanel.classList.add('translate-x-full');
         this.settingsIcon.style.transform = 'rotate(0deg)';
         this.isSettingsOpen = false;
+    }
+    
+    toggleData() {
+        this.isDataOpen = !this.isDataOpen;
+        if (this.isDataOpen) {
+            this.openData();
+        } else {
+            this.closeData();
+        }
+    }
+    
+    openData() {
+        // 如果设置面板是打开的，先关闭它
+        if (this.isSettingsOpen) {
+            this.closeSettings();
+        }
+        
+        this.dataPanel.classList.remove('translate-x-full');
+        this.dataPanel.classList.add('translate-x-0');
+        this.isDataOpen = true;
+        this.updateDataDisplay();
+    }
+    
+    closeData() {
+        this.dataPanel.classList.remove('translate-x-0');
+        this.dataPanel.classList.add('translate-x-full');
+        this.isDataOpen = false;
+    }
+    
+    updateDataDisplay() {
+        try {
+            const localData = localStorage.getItem('pomodoroData');
+            const sessionData = sessionStorage.getItem('pomodoroData');
+            
+            let displayContent = '<div class="space-y-3">';
+            
+            if (localData) {
+                const data = JSON.parse(localData);
+                displayContent += `
+                    <div class="bg-gray-50 dark:bg-gray-700 p-3 rounded-lg">
+                        <h4 class="font-semibold mb-2 text-gray-900 dark:text-gray-100">LocalStorage 数据:</h4>
+                        <div class="space-y-1">
+                            <div>番茄数: <span class="font-mono">${data.sessionCount || 0}</span></div>
+                            <div>工作时长: <span class="font-mono">${data.workDuration || 25}</span> 分钟</div>
+                            <div>短休息: <span class="font-mono">${data.shortBreakDuration || 5}</span> 分钟</div>
+                            <div>长休息: <span class="font-mono">${data.longBreakDuration || 15}</span> 分钟</div>
+                            <div>自动开始: <span class="font-mono">${data.autoStart ? '是' : '否'}</span></div>
+                            ${data.currentMode ? `<div>当前模式: <span class="font-mono">${data.currentMode}</span></div>` : ''}
+                            ${data.timeLeft ? `<div>剩余时间: <span class="font-mono">${Math.floor(data.timeLeft / 60)}:${(data.timeLeft % 60).toString().padStart(2, '0')}</span></div>` : ''}
+                            ${data.lastSaveTime ? `<div>最后保存: <span class="font-mono">${new Date(data.lastSaveTime).toLocaleString()}</span></div>` : ''}
+                        </div>
+                    </div>
+                `;
+            } else {
+                displayContent += '<div class="text-gray-500">LocalStorage 中没有数据</div>';
+            }
+            
+            if (sessionData && sessionData !== localData) {
+                const data = JSON.parse(sessionData);
+                displayContent += `
+                    <div class="bg-blue-50 dark:bg-blue-900 p-3 rounded-lg">
+                        <h4 class="font-semibold mb-2 text-gray-900 dark:text-gray-100">SessionStorage 数据:</h4>
+                        <div class="space-y-1">
+                            <div>番茄数: <span class="font-mono">${data.sessionCount || 0}</span></div>
+                            <div>当前模式: <span class="font-mono">${data.currentMode || 'work'}</span></div>
+                            ${data.timeLeft ? `<div>剩余时间: <span class="font-mono">${Math.floor(data.timeLeft / 60)}:${(data.timeLeft % 60).toString().padStart(2, '0')}</span></div>` : ''}
+                            ${data.lastSaveTime ? `<div>最后保存: <span class="font-mono">${new Date(data.lastSaveTime).toLocaleString()}</span></div>` : ''}
+                        </div>
+                    </div>
+                `;
+            }
+            
+            displayContent += `
+                <div class="pt-3 border-t border-gray-200 dark:border-gray-600">
+                    <button id="clearDataBtn" class="w-full px-3 py-2 text-sm bg-red-50 dark:bg-red-900 text-red-600 dark:text-red-400 rounded hover:bg-red-100 dark:hover:bg-red-800 transition-colors">
+                        清除所有数据
+                    </button>
+                </div>
+            `;
+            
+            displayContent += '</div>';
+            this.dataContent.innerHTML = displayContent;
+            
+            // 绑定清除数据按钮事件
+            const clearBtn = document.getElementById('clearDataBtn');
+            if (clearBtn) {
+                clearBtn.addEventListener('click', () => this.clearAllData());
+            }
+            
+        } catch (error) {
+            this.dataContent.innerHTML = `<div class="text-red-500">数据解析错误: ${error.message}</div>`;
+        }
+    }
+    
+    clearAllData() {
+        if (confirm('确定要清除所有本地数据吗？这将无法恢复！')) {
+            localStorage.removeItem('pomodoroData');
+            sessionStorage.removeItem('pomodoroData');
+            this.sessionCount = 0;
+            this.sessionCountElement.textContent = '0';
+            this.updateDataDisplay();
+            alert('数据已清除');
+        }
+    }
+    
+    testSound() {
+        // 更新按钮状态
+        this.testSoundBtn.textContent = '🔄 播放中...';
+        this.testSoundBtn.disabled = true;
+        
+        console.log('开始测试声音播放...');
+        
+        // 调用播放声音的方法
+        this.playAlarm();
+        
+        // 2秒后恢复按钮状态
+        setTimeout(() => {
+            this.testSoundBtn.textContent = '🔊 测试提示音';
+            this.testSoundBtn.disabled = false;
+            console.log('声音测试完成');
+        }, 2000);
+    }
+    
+    isIOS() {
+        return /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+               (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
     }
 }
 
