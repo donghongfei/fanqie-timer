@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>番茄时钟 | Pomodoro Timer</title>
+    
+    <!-- PWA Meta Tags -->
+    <meta name="description" content="简约番茄时钟 - 专注工作的极简计时器">
+    <meta name="theme-color" content="#111827">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="番茄时钟">
+    <meta name="mobile-web-app-capable" content="yes">
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json">
+    
+    <!-- Icons -->
+    <link rel="icon" type="image/svg+xml" href="/icon.svg">
+    <link rel="apple-touch-icon" href="/icon.svg">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        'mono': ['SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Consolas', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-gray-50 text-gray-900 font-mono overflow-hidden">
+    <div class="h-screen flex items-center justify-center p-4">
+        <div class="w-full max-w-7xl flex items-center justify-between gap-8">
+            <!-- Main Timer Section -->
+            <div class="flex-1 flex flex-col items-center justify-center">
+                <!-- Header -->
+                <div class="text-center mb-6">
+                    <h1 class="text-2xl font-light text-gray-700 mb-1">🍅 番茄时钟</h1>
+                    <p class="text-sm text-gray-500">专注工作，高效休息</p>
+                </div>
+
+                <!-- Mode Selector -->
+                <div class="flex gap-2 mb-8">
+                    <button class="mode-btn px-4 py-2 text-sm font-medium rounded-lg border-2 border-gray-300 bg-white text-gray-900 transition-all duration-200 hover:border-gray-400 active" data-mode="work">工作</button>
+                    <button class="mode-btn px-4 py-2 text-sm font-medium rounded-lg border-2 border-gray-200 bg-gray-50 text-gray-600 transition-all duration-200 hover:border-gray-400" data-mode="short-break">短休息</button>
+                    <button class="mode-btn px-4 py-2 text-sm font-medium rounded-lg border-2 border-gray-200 bg-gray-50 text-gray-600 transition-all duration-200 hover:border-gray-400" data-mode="long-break">长休息</button>
+                </div>
+
+                <!-- Timer Display -->
+                <div class="relative mb-8">
+                    <svg width="280" height="280" class="transform -rotate-90">
+                        <circle cx="140" cy="140" r="120" fill="none" stroke="#e5e7eb" stroke-width="2"/>
+                        <circle cx="140" cy="140" r="120" fill="none" stroke="#374151" stroke-width="3" 
+                                stroke-linecap="round" stroke-dasharray="753.982" stroke-dashoffset="753.982" 
+                                id="progressCircle" class="transition-all duration-1000 ease-linear"/>
+                    </svg>
+                    <div class="absolute inset-0 flex items-center justify-center">
+                        <div class="text-5xl font-light text-gray-900 font-mono tabular-nums" id="timeLeft">25:00</div>
+                    </div>
+                </div>
+
+                <!-- Timer Controls -->
+                <div class="flex gap-4 mb-6">
+                    <button class="px-8 py-3 bg-gray-900 text-white rounded-lg font-medium transition-all duration-200 hover:bg-gray-800 active:scale-95" id="startBtn">开始</button>
+                    <button class="px-8 py-3 bg-gray-200 text-gray-700 rounded-lg font-medium transition-all duration-200 hover:bg-gray-300 active:scale-95" id="resetBtn">重置</button>
+                </div>
+
+                <!-- Session Info -->
+                <div class="flex items-center gap-8 text-sm text-gray-600">
+                    <div class="session-counter">
+                        番茄数: <span class="px-2 py-1 bg-gray-200 rounded text-gray-900 font-semibold" id="sessionCount">0</span>
+                    </div>
+                    <div class="current-mode" id="currentMode">工作时间</div>
+                </div>
+            </div>
+
+            <!-- Collapsible Settings -->
+            <div class="flex-shrink-0">
+                <button class="settings-toggle w-10 h-10 flex items-center justify-center bg-white border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50 transition-all duration-200" id="settingsToggle">
+                    <svg class="w-5 h-5 transition-transform duration-200" id="settingsIcon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                    </svg>
+                </button>
+                
+                <div class="settings-panel fixed top-4 right-4 w-80 bg-white border border-gray-200 rounded-lg shadow-lg p-6 transform translate-x-full transition-transform duration-300 ease-in-out z-50" id="settingsPanel">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">设置</h3>
+                    
+                    <div class="space-y-4">
+                        <div class="flex items-center justify-between">
+                            <label for="workDuration" class="text-sm font-medium text-gray-700">工作时间 (分钟)</label>
+                            <input type="number" id="workDuration" min="1" max="60" value="25" class="w-20 px-3 py-1 border border-gray-300 rounded text-center text-sm focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent">
+                        </div>
+                        
+                        <div class="flex items-center justify-between">
+                            <label for="shortBreakDuration" class="text-sm font-medium text-gray-700">短休息 (分钟)</label>
+                            <input type="number" id="shortBreakDuration" min="1" max="30" value="5" class="w-20 px-3 py-1 border border-gray-300 rounded text-center text-sm focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent">
+                        </div>
+                        
+                        <div class="flex items-center justify-between">
+                            <label for="longBreakDuration" class="text-sm font-medium text-gray-700">长休息 (分钟)</label>
+                            <input type="number" id="longBreakDuration" min="1" max="60" value="15" class="w-20 px-3 py-1 border border-gray-300 rounded text-center text-sm focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent">
+                        </div>
+                        
+                        <div class="flex items-center justify-between pt-2 border-t border-gray-200">
+                            <label for="autoStart" class="text-sm font-medium text-gray-700">自动开始下一轮</label>
+                            <input type="checkbox" id="autoStart" class="w-4 h-4 text-gray-600 border-gray-300 rounded focus:ring-gray-500">
+                        </div>
+                    </div>
+                    
+                    <div class="mt-6 pt-4 border-t border-gray-200">
+                        <p class="text-xs text-gray-500 leading-relaxed">番茄工作法：25分钟专注工作，5分钟休息，每4个番茄后长休息15分钟</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <audio id="alarmSound" preload="auto">
+        <source src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmAcBjuR1u/HdSEELn/D8N+POAcYZrDh7q1lGx4+ltryxnkpBSl5y/LVgCwHCmiw7fKVRQoV7c0=" type="audio/wav">
+    </audio>
+
+    <script src="script.js"></script>
+    
+    <!-- PWA Service Worker Registration -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(registration => {
+                        console.log('SW registered: ', registration);
+                    })
+                    .catch(registrationError => {
+                        console.log('SW registration failed: ', registrationError);
+                    });
+            });
+        }
+    </script>
+</body>
+</html>

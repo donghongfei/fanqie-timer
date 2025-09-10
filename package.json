@@ -1,0 +1,14 @@
+{
+  "name": "fanqie-timer",
+  "version": "2.0.0",
+  "description": "简约番茄时钟 - 专注工作的极简计时器",
+  "keywords": [
+    "pomodoro",
+    "timer",
+    "productivity",
+    "focus",
+    "番茄工作法",
+    "minimal"
+  ],
+  "license": "MIT"
+}
